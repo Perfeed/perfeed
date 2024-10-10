@@ -12,7 +12,7 @@ class TestGithubProvider(unittest.TestCase):
         Set up a mock GithubProvider instance before each test.
         """
         self.mock_api = MockGhApi.return_value
-        self.github_provider = GithubProvider(owner="test_owner", repo="test_repo", token="fake_token")
+        self.github_provider = GithubProvider(owner="test_owner", token="fake_token")
 
     def test_get_pr_comments_issue_comment(self):
         """
@@ -65,7 +65,7 @@ class TestGithubProvider(unittest.TestCase):
             {"id": 2, "user": {"login": "review_user", "type": "User"}, "created_at": "2023-10-01T11:00:00Z", "body": "Review comment", "html_url": "http://example.com/comment/2"}
         ]
         
-        comments = self.github_provider.list_pr_comments("test_owner", "test_repo", 1)
+        comments = self.github_provider.list_pr_comments("test_repo", 1)
         
         self.assertEqual(len(comments), 2)
         self.assertEqual(comments[0].created_at, "2023-10-01T10:00:00Z")
@@ -120,7 +120,7 @@ class TestGithubProvider(unittest.TestCase):
             diff_lines="+10 -5",
             merged_at=None,
         )) as mock_to_pull_request:
-            pull_request = self.github_provider.fetch_pr(123)
+            pull_request = self.github_provider.fetch_pr("test_repo", 123)
             mock_to_pull_request.assert_called_once_with(pr_data)
     
     @patch('src.github.provider.GithubProvider._get_pr_comments')
@@ -132,6 +132,7 @@ class TestGithubProvider(unittest.TestCase):
             "number": 123,
             "title": "Test PR",
             "user": {"login": "author"},
+            "base": {"repo": {"name": "test_repo"}},
             "state": "open",
             "created_at": "2023-10-01T10:00:00Z",
             "body": "This is a test pull request.",
@@ -152,7 +153,7 @@ class TestGithubProvider(unittest.TestCase):
         ]
         mock_get_pr_comments.return_value = []
                 
-        pull_request = self.github_provider._to_PullRequest("test_owner", "test_repo", pr_data, "author")
+        pull_request = self.github_provider._to_PullRequest(pr_data)
         
         self.assertEqual(pull_request.title, "Test PR")
         self.assertEqual(pull_request.diff_lines, "+10 -5")

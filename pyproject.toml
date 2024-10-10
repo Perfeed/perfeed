@@ -5,6 +5,7 @@ description = "Personalized, AI assistant that runs with your engineering teams"
 authors = ["Perfeed Core"]
 license = "MIT"
 readme = "README.md"
+packages = [{include = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"

@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 import json
 from datetime import datetime
@@ -7,11 +8,11 @@ from ghapi.all import GhApi, pages
 from src.github.models import CommentType, PRComment, PullRequest, FileDiff
 
 class GithubProvider:
-    def __init__(self, owner: str, repo: str | None = None, token: str | None = None):
+    def __init__(self, owner: str, token: str | None = None):
         load_dotenv()
         self.api = GhApi(owner=owner, token=token or os.getenv('GITHUB_PERSONAL_ACCESS_TOKEN'))
-        self.repo = repo  # Store the repo if provided, otherwise it's None
-    
+        self.owner = owner
+
     def _get_pr_comments(self, owner: str, repo_name: str, pr_number: int, comment_type: CommentType) -> list[PRComment]:
         """
         Retrieves comments associated with a pull request, filtered by comment type.
@@ -45,7 +46,7 @@ class GithubProvider:
             for comment in comments
         ]
 
-    def list_pr_comments(self, owner: str, repo_name: str, pr_number: int) -> list[PRComment]:
+    def list_pr_comments(self, repo_name: str, pr_number: int) -> list[PRComment]:
         """
         Lists all the comments associated with a GitHub pull request.
 
@@ -62,8 +63,8 @@ class GithubProvider:
         Returns:
             list[PRComment]: A list of `PRComment` objects representing the comments for the specified pull request.
         """
-        issue_comments = self._get_pr_comments(owner, repo_name, pr_number, CommentType.ISSUE_COMMENT)
-        review_comments = self._get_pr_comments(owner, repo_name, pr_number, CommentType.REVIEW_COMMENT)
+        issue_comments = self._get_pr_comments(self.owner, repo_name, pr_number, CommentType.ISSUE_COMMENT)
+        review_comments = self._get_pr_comments(self.owner, repo_name, pr_number, CommentType.REVIEW_COMMENT)
         return sorted(issue_comments + review_comments, key=lambda x: x.created_at)
     
     def get_patch(self, pr_file: dict) -> str:
@@ -78,33 +79,33 @@ class GithubProvider:
         """
         return pr_file.get('patch', 'no changes')
 
-    def _to_PullRequest(self, owner: str, repo_name: str, pr: dict, username: str) -> PullRequest:
+    def _to_PullRequest(self, pr: dict) -> PullRequest:
         """
         Convert a GitHub pull request dictionary into a `PullRequest` dataclass.
 
         Args:
-            owner (str): The owner of the repository.
-            repo_name (str): The name of the repository.
             pr (dict): The pull request data from the GitHub API.
-            username (str): The username of the author to match.
 
         Returns:
             PullRequest: The `PullRequest` object containing detailed information about the PR.
         """
         pr_number = pr['number']
-        pr_files = self.api.pulls.list_files(owner=owner, repo=repo_name, pull_number=pr_number)
+        owner = self.owner
+        repo_name = pr['base']['repo']['name']
+
+        pr_files = self.api.pulls.list_files(owner=self.owner, repo=repo_name, pull_number=pr_number)
         code_diff: list[FileDiff] = []
         for file in pr_files:
             code_diff.append(FileDiff(file['filename'], file['status'], self.get_patch(file)))
 
-        commits = self.api.pulls.list_commits(owner=owner, repo=repo_name, pull_number=pr_number)
+        commits = self.api.pulls.list_commits(owner=self.owner, repo=repo_name, pull_number=pr_number)
         first_commit = commits[0].get('commit')
         first_committed_at = first_commit.get('author').get('date')
         diff_lines = f'+{pr.get("additions")} -{pr.get("deletions")}'
         merged_at = pr.get('merged_at') if pr.get('merged_at') != 'null' else None
 
         pr_reviewers = set()
-        reviews = self.api.pulls.list_reviews(owner=owner, repo=repo_name, pull_number=pr_number)
+        reviews = self.api.pulls.list_reviews(owner=self.owner, repo=repo_name, pull_number=pr_number)
         for review in reviews:
             # skip the review from the author and bots
             if review['user']['login'] == pr['user']['login'] or review['user']['type'] == 'Bot':
@@ -113,7 +114,7 @@ class GithubProvider:
                 pr_reviewers.add(review['user']['login'])
 
         # Read all PR comments
-        pr_comments = self.list_pr_comments(owner, repo_name, pr_number)
+        pr_comments = self.list_pr_comments(repo_name, pr_number)
 
         return PullRequest(
             number=pr_number,
@@ -131,7 +132,7 @@ class GithubProvider:
             merged_at=merged_at,
         )
 
-    def fetch_pr(self, pr_number: int) -> PullRequest:
+    def fetch_pr(self, repo: str, pr_number: int) -> PullRequest:
         """
         Fetch a pull request based on its number.
 
@@ -144,22 +145,8 @@ class GithubProvider:
         Returns:
             PullRequest: The `PullRequest` object containing detailed information about the PR.
         """
-        pr = self.api.pulls.get(pr_number)
+        pr = self.api.pulls.get(repo, pr_number)
         return self._to_PullRequest(pr)
-    
-    def list_prs(self, per_page: int, n_pages: int) -> list[PullRequest]:
-        """
-        List all closed pull requests, sorted by creation date in descending order.
-        
-        Args:
-            per_page (int): The number of pull requests to fetch per page.
-            n_pages (int): The number of pages to fetch.
-        
-        Returns:
-            list[PullRequest]: A list of `PullRequest` objects representing the closed pull requests.
-        """
-        prs = pages(self.api.pulls.list, n_pages, state='closed', sort='created', direction='desc', per_page=per_page).concat()
-        return [self._to_PullRequest(pr) for pr in prs]
 
     def fetch_pr_numbers(self, owner: str, repo_name: str, start_date: datetime, end_date: datetime):
         """
@@ -208,7 +195,7 @@ class GithubProvider:
             Pull requests for each specified user are saved as JSON files in the specified output folder.
             The files are named using the format: {username}_{repo_name}_prs.json.
         """
-        repos = pages(self.api.repos.list_for_org, 360, org=owner, per_page=100).concat()
+        repos = pages(self.api.repos.list_for_org, self.api.last_page(), owner).concat()
         # Create the folder if it doesn't exist
         os.makedirs(output_folder, exist_ok=True)
         # Iterate over each repository
@@ -225,7 +212,7 @@ class GithubProvider:
                 for pr in prs:
                     if pr['user']['login'] != username:
                         continue
-                    pullRequest = self._to_PullRequest(owner, repo_name, pr, username)
+                    pullRequest = self._to_PullRequest(pr)
                     if pullRequest:
                         user_prs.append(pullRequest)
 
@@ -237,3 +224,8 @@ class GithubProvider:
                     with open(file_path, "w") as save_file:
                         json.dump(pullRequests_dict, save_file, indent=6)
                     print(f'Saved PRs for {username} in {file_name}')                      
+
+# if __name__ == '__main__':
+#     git = GithubProvider(owner='run-llama', token=None)
+#     pr = git.fetch_pr('llama_index', 16309)
+#     print(pr)

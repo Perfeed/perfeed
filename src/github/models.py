@@ -56,6 +56,7 @@ class PullRequest:
     first_committed_at: str
     description: str
     code_diff: list[FileDiff]
+    html_url: str
     diff_url: str
     comments: list[PRComment]
     diff_lines: str
@@ -73,6 +74,7 @@ class PullRequest:
             "description": self.description,
             "code_diff": [file_diff.to_dict() for file_diff in self.code_diff],
             "diff_url": self.diff_url,
+            "html_url": self.html_url,
             "comments": [comment.to_dict() for comment in self.comments],
             "diff_lines": self.diff_lines,
             "merged_at": self.merged_at

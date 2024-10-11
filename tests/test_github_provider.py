@@ -96,6 +96,7 @@ class TestGithubProvider(unittest.TestCase):
             "created_at": "2023-10-01T10:00:00Z",
             "body": "This is a test pull request.",
             "html_url": "http://example.com/pr/123",
+            "diff_url": "http://example.com/diff",
             "additions": 10,
             "deletions": 5,
             "merged_at": None
@@ -115,7 +116,8 @@ class TestGithubProvider(unittest.TestCase):
             first_committed_at="2023-09-30T10:00:00Z",
             description="This is a test pull request.",
             code_diff=[],
-            diff_url="http://example.com/pr/123",
+            html_url="http://example.com/pr/123",
+            diff_url="http://example.com/diff",
             comments=[],
             diff_lines="+10 -5",
             merged_at=None,
@@ -137,6 +139,7 @@ class TestGithubProvider(unittest.TestCase):
             "created_at": "2023-10-01T10:00:00Z",
             "body": "This is a test pull request.",
             "html_url": "http://example.com/pr/123",
+            "diff_url": "http://example.com/diff",
             "additions": 10,
             "deletions": 5,
             "merged_at": None

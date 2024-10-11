@@ -126,7 +126,8 @@ class GithubProvider:
             first_committed_at=first_committed_at,
             description=pr['body'],
             code_diff=code_diff,
-            diff_url=pr['html_url'],
+            html_url=pr['html_url'],
+            diff_url=pr['diff_url'],
             comments=pr_comments,
             diff_lines=diff_lines,
             merged_at=merged_at,
@@ -164,7 +165,7 @@ class GithubProvider:
         all_prs = []
         page = 1
         while True:
-            prs = self.api.pulls.list(owner=owner, repo=repo_name, state="closed", sort="created", direction="desc", per_page=100, page=page)
+            prs = self.api.pulls.list(owner=owner, repo=repo_name, state="closed", sort="created", direction="desc", per_page=100, page=page) # type: ignore
             # Filter PRs for the date range within this page
             filtered_prs = [
                 pr for pr in prs 

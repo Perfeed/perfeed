@@ -1,9 +1,12 @@
+import json
+
 import requests
 from jinja2 import Environment, StrictUndefined
 
 from src.config_loader import settings
 from src.github import provider
 from src.utils.llm_endpoint import LLM
+from src.utils.tokenizer import count_tokens
 
 
 # TODO: refactor the model settings (platform, model) for llm initialization to another function to be passed in.
@@ -24,13 +27,46 @@ class PRSummarizer:
         }
 
         environment = Environment(undefined=StrictUndefined)
-        system_prompt = environment.from_string(settings.pr_summary_prompt.system).render(self.variables)
-        user_prompt = environment.from_string(settings.pr_summary_prompt.user).render(self.variables)
+        system_prompt = environment.from_string(
+            settings.pr_summary_prompt.system
+        ).render(self.variables)
+        user_prompt = environment.from_string(settings.pr_summary_prompt.user).render(
+            self.variables
+        )
 
-        summary = self.llm.invoke(user_prompt=user_prompt, system_prompt=system_prompt)
-        print(summary)
+        print(f"Token count: {count_tokens(system_prompt + user_prompt)}")
+
+        # override to use raw http request over openai api
+        data = {
+            "model": "llama3.1:8b-instruct-q4_0",
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "format": "json",
+            "stream": False,
+            "options": {"num_ctx": 4096, "top_k": 10, "top_p": 0.1},
+        }
+
+        response = requests.post(
+            "http://localhost:11434/v1/chat/completions",
+            headers={"Content-Type": "application/json"},
+            json=data,
+        )
+        json_data = json.loads(response.text)
+        print(json_data["choices"][0]["message"]["content"])
+        
+        print("========================================")
+
+        # summary = self.llm.invoke(user_prompt=user_prompt, system_prompt=system_prompt)
+        # print(summary)
 
 
 if __name__ == "__main__":
-    summarizer = PRSummarizer(platform="openai", model="gpt-4o", owner="Perfeed")
+    summarizer = PRSummarizer(platform="openai", model="gpt-4o-mini", owner="Perfeed")
+    # summarizer = PRSummarizer(
+        # platform="ollama", model="llama3.1:8b-instruct-q4_0", owner="Perfeed"
+    # )
+    # summarizer = PRSummarizer(platform="ollama", model="codellama:13b-instruct", owner="Perfeed")
+
     summarizer.run("perfeed", 5)

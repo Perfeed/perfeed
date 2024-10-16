@@ -38,25 +38,23 @@ class PRSummarizer:
 
         # override to use raw http request over openai api
         data = {
-            "model": "llama3.1:8b-instruct-q4_0",
+            "model": "llama3.1:8b",
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
             "format": "json",
             "stream": False,
-            "options": {"num_ctx": 4096, "top_k": 10, "top_p": 0.1},
+            "options": {"num_ctx": 8192, "top_k": 10, "top_p": 0.1},
         }
 
         response = requests.post(
-            "http://localhost:11434/v1/chat/completions",
+            "http://localhost:11434/api/chat",
             headers={"Content-Type": "application/json"},
             json=data,
         )
         json_data = json.loads(response.text)
-        print(json_data["choices"][0]["message"]["content"])
-        
-        print("========================================")
+        print(json_data['message']['content'])
 
         # summary = self.llm.invoke(user_prompt=user_prompt, system_prompt=system_prompt)
         # print(summary)

@@ -21,11 +21,12 @@ class TestLLM(unittest.TestCase):
             self.assertIsNotNone(llm_openai.client)
 
     def test_openai_platform_without_key(self):
-        with self.assertRaises(RuntimeError) as context:
-            LLM(platform="openai", model_name="gpt-3")
-        self.assertIn(
-            "'OPENAI_API_KEY' not found via os.getenv", str(context.exception)
-        )
+        with mock.patch.dict("os.environ", {"OPENAI_API_KEY": ""}):
+            with self.assertRaises(RuntimeError) as context:
+                LLM(platform="openai", model_name="gpt-3")
+            self.assertIn(
+                "'OPENAI_API_KEY' not found via os.getenv", str(context.exception)
+            )
 
     def test_invalid_platform(self):
         with self.assertRaises(RuntimeError) as context:

@@ -40,4 +40,4 @@ class LLM:
         except RequestException as e:
             raise RuntimeError(f"Failed to communicate with the LLM platform: {str(e)}")
 
-        return response.choices[0].message.content
+        return response.choices[0].message.content # type: ignore

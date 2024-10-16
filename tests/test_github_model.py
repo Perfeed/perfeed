@@ -83,6 +83,7 @@ class TestPullRequest(unittest.TestCase):
             description="This PR fixes an issue.",
             code_diff=[file_diff],
             diff_url="http://example.com/diff/1",
+            html_url="http://example.com/pr/1",
             comments=[pr_comment],
             diff_lines="+10 -2",
             merged_at=None
@@ -98,6 +99,7 @@ class TestPullRequest(unittest.TestCase):
             "description": "This PR fixes an issue.",
             "code_diff": [file_diff.to_dict()],
             "diff_url": "http://example.com/diff/1",
+            "html_url":  "http://example.com/pr/1",
             "comments": [pr_comment.to_dict()],
             "diff_lines": "+10 -2",
             "merged_at": None

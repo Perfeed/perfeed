@@ -37,7 +37,7 @@ class OllamaClient(BaseClient):
                 {"role": "user", "content": user},
             ],
             options={
-                "num_ctx": kwargs.get("num_ctx", 4096),
+                "num_ctx": kwargs.get("num_ctx", 4096 * 2),
                 "temperature": kwargs.get("temperature", 0),
             },
         )

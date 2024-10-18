@@ -14,6 +14,8 @@ fastai = "^2.7.17"
 ghapi = "^1.0.6"
 openai = "^1.51.0"
 ollama = "^0.3.3"
+dynaconf = "^3.2.6"
+tiktoken = "^0.8.0"
 
 
 [build-system]
